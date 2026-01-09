@@ -4,7 +4,7 @@ Official website: https://mjcjobmanager.com.au
 
 <p align="center">
   <a href="https://mjcjobmanager.com.au">
-	<img src="frontend/public/favicon.png" alt="MJC Job Manager" width="96" />
+	<img src="https://41aace97.mjcjobmanager.pages.dev/assets/icons/icon-96.webp" alt="MJC Job Manager" width="96" />
   </a>
 </p>
 
