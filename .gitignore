@@ -1,0 +1,22 @@
+# Android/Gradle
+.gradle/
+build/
+**/build/
+local.properties
+**/local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Signing keys / secrets
+keystore.properties
+**/keystore.properties
+*.jks
+*.keystore
+*/local.properties
+.keystore
+
+# Built artifacts
+*.apk
+*.aab
