@@ -14,19 +14,19 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Utility for logging errors and sending error reports via email.
+ * Utility for logging errors and sending error reports to GitHub via edge function.
  * 
  * Usage:
  * ```
  * // With exception
- * ErrorReporter.logAndEmailError(
+ * ErrorReporter.logAndReportError(
  *     context = "PurchaseOrderRepository.createPO",
  *     error = exception,
  *     userId = securePrefs.getUserId()
  * )
  * 
  * // With message only
- * ErrorReporter.logAndEmailError(
+ * ErrorReporter.logAndReportError(
  *     context = "API.unexpectedResponse",
  *     message = "Server returned 500",
  *     userId = securePrefs.getUserId()
@@ -62,14 +62,14 @@ object ErrorReporter {
     }
     
     /**
-     * Log an error and send an email report.
+     * Log an error and send a report to GitHub.
      * 
      * @param context Where the error occurred (e.g., "JobsRepository.fetchJobs")
      * @param error The exception that was caught
      * @param userId Optional user ID (uses cached value if not provided)
      * @param additionalInfo Optional extra context as key-value pairs
      */
-    fun logAndEmailError(
+    fun logAndReportError(
         context: String,
         error: Throwable,
         userId: String? = null,
@@ -92,14 +92,14 @@ object ErrorReporter {
     }
     
     /**
-     * Log a message-based error (no exception) and send an email report.
+     * Log a message-based error (no exception) and send a report.
      * 
      * @param context Where the error occurred
      * @param message Description of the error
      * @param userId Optional user ID
      * @param additionalInfo Optional extra context
      */
-    fun logAndEmailError(
+    fun logAndReportError(
         context: String,
         message: String,
         userId: String? = null,
@@ -117,6 +117,23 @@ object ErrorReporter {
             additionalInfo = additionalInfo
         )
     }
+    
+    // Legacy method names for backward compatibility
+    @Deprecated("Use logAndReportError instead", ReplaceWith("logAndReportError(context, error, userId, additionalInfo)"))
+    fun logAndEmailError(
+        context: String,
+        error: Throwable,
+        userId: String? = null,
+        additionalInfo: Map<String, String> = emptyMap()
+    ) = logAndReportError(context, error, userId, additionalInfo)
+    
+    @Deprecated("Use logAndReportError instead", ReplaceWith("logAndReportError(context, message, userId, additionalInfo)"))
+    fun logAndEmailError(
+        context: String,
+        message: String,
+        userId: String? = null,
+        additionalInfo: Map<String, String> = emptyMap()
+    ) = logAndReportError(context, message, userId, additionalInfo)
     
     private fun sendErrorReport(
         context: String,
