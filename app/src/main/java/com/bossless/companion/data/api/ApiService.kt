@@ -258,7 +258,38 @@ interface ApiService {
     // Business Profile with feature flags
     @GET("rest/v1/business_profiles")
     suspend fun getBusinessProfileWithFeatures(
-        @Query("select") select: String = "document_prefix,business_name,logo_url,business_hours,feature_scheduler",
+        @Query("select") select: String = "document_prefix,business_name,logo_url,business_hours,feature_scheduler,feature_stripe_payments,enable_stripe_payments",
         @Query("limit") limit: Int = 1
     ): Response<List<com.bossless.companion.data.models.BusinessProfile>>
+
+    // ============== Invoice Payments ==============
+
+    /**
+     * Get invoices for a specific job.
+     * Filters to unpaid statuses by default.
+     */
+    @GET("rest/v1/documents")
+    suspend fun getInvoicesForJob(
+        @Query("job_id") jobId: String,  // Caller must prefix with "eq."
+        @Query("type") type: String = "eq.invoice",
+        @Query("status") status: String = "in.(draft,validated,sent,overdue)",
+        @Query("select") select: String = "id,document_number,type,total_amount,status,issue_date,due_date,third_party_id,payment_token,payment_token_expires_at,payment_token_invalidated_at,total_paid,paid_at,created_at,third_parties(id,name,email,phone)",
+        @Query("order") order: String = "created_at.desc"
+    ): Response<List<com.bossless.companion.data.models.InvoiceDocument>>
+
+    /**
+     * Regenerate payment token for an invoice via edge function.
+     */
+    @POST("functions/v1/regenerate-payment-token")
+    suspend fun regeneratePaymentToken(
+        @Body request: com.bossless.companion.data.models.RegeneratePaymentTokenRequest
+    ): Response<com.bossless.companion.data.models.RegeneratePaymentTokenResponse>
+
+    /**
+     * Send document (invoice) email via edge function.
+     */
+    @POST("functions/v1/send-document-email")
+    suspend fun sendDocumentEmail(
+        @Body request: com.bossless.companion.data.models.SendDocumentEmailRequest
+    ): Response<com.bossless.companion.data.models.SendDocumentEmailResponse>
 }

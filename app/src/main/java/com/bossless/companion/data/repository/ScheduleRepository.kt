@@ -116,4 +116,27 @@ class ScheduleRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * Check if Stripe payments feature is enabled for this organization.
+     * Both feature_stripe_payments (feature flag) and enable_stripe_payments (configured) must be true.
+     */
+    suspend fun isStripePaymentsEnabled(): Boolean {
+        return try {
+            val response = apiService.getBusinessProfileWithFeatures()
+            if (response.isSuccessful) {
+                val profile = response.body()?.firstOrNull()
+                // Both the feature flag AND the configuration must be enabled
+                profile?.feature_stripe_payments == true && profile.enable_stripe_payments == true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            ErrorReporter.logAndReportError(
+                context = "ScheduleRepository.isStripePaymentsEnabled",
+                error = e
+            )
+            false
+        }
+    }
 }

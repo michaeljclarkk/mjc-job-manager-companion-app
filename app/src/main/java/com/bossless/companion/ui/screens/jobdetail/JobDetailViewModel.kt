@@ -13,12 +13,14 @@ import com.bossless.companion.data.models.TimeEntry
 import com.bossless.companion.data.models.Document
 import com.bossless.companion.data.models.DocumentItem
 import com.bossless.companion.data.models.PurchaseOrderLineItem
+import com.bossless.companion.data.models.InvoiceDocument
 import com.bossless.companion.data.repository.JobsRepository
 import com.bossless.companion.data.repository.JobDetailRepository
 import com.bossless.companion.data.models.JobDocument
 import com.bossless.companion.data.repository.JobDocumentsRepository
 import com.bossless.companion.data.repository.TimeEntriesRepositoryOffline
 import com.bossless.companion.data.repository.PurchaseOrderRepository
+import com.bossless.companion.data.repository.PaymentsRepository
 import com.bossless.companion.data.local.SecurePrefs
 import com.bossless.companion.service.TimerService
 import com.bossless.companion.utils.NetworkUtils
@@ -39,6 +41,7 @@ class JobDetailViewModel @Inject constructor(
     private val timeEntriesRepository: com.bossless.companion.data.repository.TimeEntriesRepository,
     private val jobDocumentsRepository: JobDocumentsRepository,
     private val purchaseOrderRepository: PurchaseOrderRepository,
+    private val paymentsRepository: PaymentsRepository,
     private val networkUtils: NetworkUtils,
     private val securePrefs: SecurePrefs,
     private val application: Application,
@@ -634,6 +637,118 @@ class JobDetailViewModel @Inject constructor(
             isLoadingDocumentPreview = false
         )
     }
+
+    // ============== Payments/Invoices Functions ==============
+
+    fun loadInvoices() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingInvoices = true, paymentError = null)
+            val result = paymentsRepository.getInvoicesForJob(jobId)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    invoices = result.getOrNull() ?: emptyList(),
+                    isLoadingInvoices = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingInvoices = false,
+                    paymentError = result.exceptionOrNull()?.message ?: "Failed to load invoices"
+                )
+            }
+        }
+    }
+
+    fun selectInvoiceForPayment(invoice: InvoiceDocument) {
+        val paymentUrl = invoice.payment_token?.let { 
+            paymentsRepository.buildPaymentUrl(it)
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedInvoice = invoice,
+            selectedInvoicePaymentUrl = paymentUrl
+        )
+    }
+
+    fun clearSelectedInvoice() {
+        _uiState.value = _uiState.value.copy(
+            selectedInvoice = null,
+            selectedInvoicePaymentUrl = null,
+            invoiceEmailSent = false
+        )
+    }
+
+    fun regeneratePaymentToken() {
+        val invoice = _uiState.value.selectedInvoice ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRegeneratingToken = true, paymentError = null)
+            val result = paymentsRepository.regeneratePaymentToken(invoice.id)
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                if (response?.success == true && response.paymentToken != null) {
+                    // Update the selected invoice with new token
+                    val updatedInvoice = invoice.copy(
+                        payment_token = response.paymentToken,
+                        payment_token_expires_at = null,
+                        payment_token_invalidated_at = null
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        selectedInvoice = updatedInvoice,
+                        selectedInvoicePaymentUrl = response.paymentUrl,
+                        isRegeneratingToken = false
+                    )
+                    // Refresh invoices list
+                    loadInvoices()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isRegeneratingToken = false,
+                        paymentError = "Failed to regenerate payment link"
+                    )
+                }
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isRegeneratingToken = false,
+                    paymentError = result.exceptionOrNull()?.message ?: "Failed to regenerate payment link"
+                )
+            }
+        }
+    }
+
+    fun sendInvoiceEmail() {
+        val invoice = _uiState.value.selectedInvoice ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSendingInvoiceEmail = true, paymentError = null)
+            val result = paymentsRepository.sendInvoiceEmail(invoice.id)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    isSendingInvoiceEmail = false,
+                    invoiceEmailSent = true
+                )
+                // Refresh invoices to update status
+                loadInvoices()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isSendingInvoiceEmail = false,
+                    paymentError = result.exceptionOrNull()?.message ?: "Failed to send invoice email"
+                )
+            }
+        }
+    }
+
+    fun clearPaymentError() {
+        _uiState.value = _uiState.value.copy(paymentError = null)
+    }
+
+    fun clearInvoiceEmailSent() {
+        _uiState.value = _uiState.value.copy(invoiceEmailSent = false)
+    }
+
+    private val _isOnline = MutableStateFlow(true)
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
+    fun checkOnlineStatus() {
+        viewModelScope.launch {
+            _isOnline.value = networkUtils.isServerReachable()
+        }
+    }
 }
 
 data class JobDetailUiState(
@@ -673,5 +788,14 @@ data class JobDetailUiState(
     val selectedDocument: Document? = null,
     val selectedDocumentItems: List<DocumentItem> = emptyList(),
     val selectedDocumentThirdParty: ThirdParty? = null,
-    val isLoadingDocumentPreview: Boolean = false
+    val isLoadingDocumentPreview: Boolean = false,
+    // Payments/Invoices state
+    val invoices: List<InvoiceDocument> = emptyList(),
+    val isLoadingInvoices: Boolean = false,
+    val selectedInvoice: InvoiceDocument? = null,
+    val selectedInvoicePaymentUrl: String? = null,
+    val isRegeneratingToken: Boolean = false,
+    val isSendingInvoiceEmail: Boolean = false,
+    val paymentError: String? = null,
+    val invoiceEmailSent: Boolean = false
 )

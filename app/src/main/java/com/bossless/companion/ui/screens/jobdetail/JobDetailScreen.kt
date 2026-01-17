@@ -61,6 +61,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.core.text.HtmlCompat
 import android.util.Log
 import com.bossless.companion.BuildConfig
+import com.bossless.companion.ui.navigation.FeatureFlagsViewModel
+import androidx.compose.material.icons.filled.CreditCard
 
 private fun logDebug(tag: String, message: String) {
     if (BuildConfig.DEBUG) Log.d(tag, message)
@@ -71,18 +73,31 @@ private fun logDebug(tag: String, message: String) {
 fun JobDetailScreen(
     onBackClick: () -> Unit,
     onTimerStarted: () -> Unit = {},
-    viewModel: JobDetailViewModel = hiltViewModel()
+    viewModel: JobDetailViewModel = hiltViewModel(),
+    featureFlagsViewModel: FeatureFlagsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isStripePaymentsEnabled by featureFlagsViewModel.isStripePaymentsEnabled.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateText by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
     var showPODialog by remember { mutableStateOf(false) }
+    var showPaymentOptionsSheet by remember { mutableStateOf(false) }
+    var showQrCodeScreen by remember { mutableStateOf(false) }
+    var showPaymentWebView by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     
     val context = LocalContext.current
     var tempImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pendingCameraLaunch by remember { mutableStateOf(false) }
+
+    // Check online status when payments tab is visible
+    LaunchedEffect(isStripePaymentsEnabled) {
+        if (isStripePaymentsEnabled) {
+            viewModel.checkOnlineStatus()
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && tempImageUri != null) {
@@ -130,15 +145,28 @@ fun JobDetailScreen(
         }
     }
     
-    val pagerState = rememberPagerState(pageCount = { 4 })
-    val coroutineScope = rememberCoroutineScope()
-    
-    val tabs = listOf(
+    // Define tabs based on feature flag
+    val baseTabs = listOf(
         TabItem("Details", Icons.Default.Edit),
         TabItem("Time", Icons.Default.Schedule),
         TabItem("Updates", Icons.Default.Update),
         TabItem("Docs", Icons.Default.Description)
     )
+    val tabs = if (isStripePaymentsEnabled) {
+        baseTabs + TabItem("Payments", Icons.Default.CreditCard)
+    } else {
+        baseTabs
+    }
+    
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val coroutineScope = rememberCoroutineScope()
+
+    // Load invoices when Payments tab is enabled
+    LaunchedEffect(isStripePaymentsEnabled) {
+        if (isStripePaymentsEnabled) {
+            viewModel.loadInvoices()
+        }
+    }
 
     // Navigate to timer when started
     LaunchedEffect(uiState.timerStarted) {
@@ -354,6 +382,17 @@ fun JobDetailScreen(
                             isDeletingPO = uiState.isDeletingPO,
                             deletingPOId = uiState.deletingPOId
                         )
+                        4 -> if (isStripePaymentsEnabled) {
+                            PaymentsTab(
+                                invoices = uiState.invoices,
+                                isLoading = uiState.isLoadingInvoices,
+                                isOnline = isOnline,
+                                onInvoiceClick = { invoice ->
+                                    viewModel.selectInvoiceForPayment(invoice)
+                                    showPaymentOptionsSheet = true
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -389,6 +428,87 @@ fun JobDetailScreen(
                 }
             } else null
         )
+    }
+    
+    // Payment Options Sheet
+    if (showPaymentOptionsSheet && uiState.selectedInvoice != null) {
+        PaymentOptionsSheet(
+            invoice = uiState.selectedInvoice!!,
+            paymentUrl = uiState.selectedInvoicePaymentUrl ?: "",
+            isRegenerating = uiState.isRegeneratingToken,
+            isSendingEmail = uiState.isSendingInvoiceEmail,
+            onDismiss = {
+                showPaymentOptionsSheet = false
+                viewModel.clearSelectedInvoice()
+            },
+            onShowQrCode = {
+                showPaymentOptionsSheet = false
+                showQrCodeScreen = true
+            },
+            onTakePayment = {
+                showPaymentOptionsSheet = false
+                showPaymentWebView = true
+            },
+            onSendToCustomer = {
+                viewModel.sendInvoiceEmail()
+            },
+            onRegenerateLink = {
+                viewModel.regeneratePaymentToken()
+            }
+        )
+    }
+    
+    // QR Code Screen (full screen)
+    if (showQrCodeScreen && uiState.selectedInvoice != null && uiState.selectedInvoicePaymentUrl != null) {
+        QrCodeScreen(
+            paymentUrl = uiState.selectedInvoicePaymentUrl!!,
+            invoiceNumber = uiState.selectedInvoice!!.document_number,
+            customerName = uiState.selectedInvoice!!.third_parties?.name,
+            amount = uiState.selectedInvoice!!.total_amount,
+            onNavigateBack = {
+                showQrCodeScreen = false
+                showPaymentOptionsSheet = true
+            }
+        )
+    }
+    
+    // Payment WebView Screen (full screen)
+    if (showPaymentWebView && uiState.selectedInvoice != null && uiState.selectedInvoicePaymentUrl != null) {
+        PaymentWebViewScreen(
+            paymentUrl = uiState.selectedInvoicePaymentUrl!!,
+            invoiceNumber = uiState.selectedInvoice!!.document_number,
+            onNavigateBack = {
+                showPaymentWebView = false
+                showPaymentOptionsSheet = true
+            },
+            onPaymentComplete = {
+                showPaymentWebView = false
+                viewModel.clearSelectedInvoice()
+                viewModel.loadInvoices() // Refresh to remove paid invoice
+            }
+        )
+    }
+    
+    // Show payment error snackbar
+    LaunchedEffect(uiState.paymentError) {
+        uiState.paymentError?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearPaymentError()
+        }
+    }
+    
+    // Show invoice email sent confirmation
+    LaunchedEffect(uiState.invoiceEmailSent) {
+        if (uiState.invoiceEmailSent) {
+            snackbarHostState.showSnackbar(
+                message = "Invoice email sent successfully",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearInvoiceEmailSent()
+        }
     }
     
     // Show error snackbar for update errors

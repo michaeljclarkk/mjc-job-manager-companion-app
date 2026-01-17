@@ -158,6 +158,9 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // QR Code generation for payment links
+    implementation("com.lightspark:compose-qr-code:1.0.1")
+
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

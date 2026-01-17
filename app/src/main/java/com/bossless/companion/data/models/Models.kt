@@ -179,7 +179,9 @@ data class BusinessProfile(
     val business_name: String? = null,
     val logo_url: String? = null,
     val business_hours: JsonObject? = null,
-    val feature_scheduler: Boolean? = null
+    val feature_scheduler: Boolean? = null,
+    val feature_stripe_payments: Boolean? = null,
+    val enable_stripe_payments: Boolean? = null
 )
 
 // ============== Daily Schedule Models ==============
@@ -220,6 +222,67 @@ data class Document(
     val issue_date: String? = null,
     val third_party_id: String? = null,
     val created_at: String
+)
+
+// ============== Invoice Payment Models ==============
+
+/**
+ * Extended document model for invoices with payment token fields.
+ * Used by the Payments feature to display invoices and generate payment links.
+ */
+@Serializable
+data class InvoiceDocument(
+    val id: String,
+    val document_number: String,
+    val type: String,
+    val total_amount: Double? = null,
+    val status: String? = null,
+    val issue_date: String? = null,
+    val due_date: String? = null,
+    val third_party_id: String? = null,
+    val payment_token: String? = null,
+    val payment_token_expires_at: String? = null,
+    val payment_token_invalidated_at: String? = null,
+    val total_paid: Double? = null,
+    val paid_at: String? = null,
+    val created_at: String,
+    val third_parties: ThirdParty? = null  // Embedded when using select with join
+)
+
+/**
+ * Response from regenerate-payment-token edge function
+ */
+@Serializable
+data class RegeneratePaymentTokenResponse(
+    val success: Boolean,
+    val paymentToken: String? = null,
+    val paymentUrl: String? = null,
+    val error: String? = null
+)
+
+/**
+ * Request to regenerate a payment token
+ */
+@Serializable
+data class RegeneratePaymentTokenRequest(
+    val documentId: String
+)
+
+/**
+ * Request to send a document email
+ */
+@Serializable
+data class SendDocumentEmailRequest(
+    val documentId: String
+)
+
+/**
+ * Response from send-document-email edge function
+ */
+@Serializable
+data class SendDocumentEmailResponse(
+    val success: Boolean,
+    val error: String? = null
 )
 
 @Serializable

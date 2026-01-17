@@ -18,8 +18,16 @@ class FeatureFlagsViewModel @Inject constructor(
     private val _isSchedulerEnabled = MutableStateFlow(false)
     val isSchedulerEnabled: StateFlow<Boolean> = _isSchedulerEnabled.asStateFlow()
 
+    private val _isStripePaymentsEnabled = MutableStateFlow(false)
+    val isStripePaymentsEnabled: StateFlow<Boolean> = _isStripePaymentsEnabled.asStateFlow()
+
     init {
+        checkFeatureFlags()
+    }
+
+    private fun checkFeatureFlags() {
         checkSchedulerFeature()
+        checkStripePaymentsFeature()
     }
 
     fun checkSchedulerFeature() {
@@ -28,7 +36,13 @@ class FeatureFlagsViewModel @Inject constructor(
         }
     }
 
+    fun checkStripePaymentsFeature() {
+        viewModelScope.launch {
+            _isStripePaymentsEnabled.value = scheduleRepository.isStripePaymentsEnabled()
+        }
+    }
+
     fun refresh() {
-        checkSchedulerFeature()
+        checkFeatureFlags()
     }
 }
