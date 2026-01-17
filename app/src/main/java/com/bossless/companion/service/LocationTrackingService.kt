@@ -318,9 +318,9 @@ class LocationTrackingService : Service() {
     }
 
     private fun handleNewLocation(location: Location) {
-        // Throttle: ignore if less than 55 seconds since last recorded location
+        // Throttle: ignore if less than 25 seconds since last recorded location
         val now = System.currentTimeMillis()
-        val MIN_INTERVAL_MS = 55_000L
+        val MIN_INTERVAL_MS = 25_000L
         if (now - lastRecordedTimeMs < MIN_INTERVAL_MS) {
             logDebug("Throttling: only ${(now - lastRecordedTimeMs) / 1000}s since last ping")
             return
@@ -429,7 +429,7 @@ class LocationTrackingService : Service() {
         private const val TAG = "LocationTrackingService"
         const val NOTIFICATION_ID = 2
         const val NOTIFICATION_CHANNEL_ID = "location_tracking_channel"
-        const val LOCATION_UPDATE_INTERVAL_MS = 60_000L // 60 seconds
+        const val LOCATION_UPDATE_INTERVAL_MS = 30_000L // 30 seconds
 
         const val ACTION_START = "ACTION_START_LOCATION_TRACKING"
         const val ACTION_STOP = "ACTION_STOP_LOCATION_TRACKING"

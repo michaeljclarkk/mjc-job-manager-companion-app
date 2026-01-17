@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -39,6 +40,7 @@ import com.bossless.companion.ui.screens.notifications.NotificationsScreen
 import com.bossless.companion.ui.screens.pin.PinSetupScreen
 import com.bossless.companion.ui.screens.pin.PinUnlockScreen
 import com.bossless.companion.ui.screens.profile.ProfileScreen
+import com.bossless.companion.ui.screens.schedule.DailyScheduleScreen
 import com.bossless.companion.ui.screens.timer.TimerScreen
 import kotlinx.coroutines.delay
 
@@ -47,8 +49,9 @@ sealed class Screen(val route: String, val title: String, val icon: androidx.com
     object PinSetup : Screen("pin_setup", "Set PIN")
     object PinUnlock : Screen("pin_unlock", "Unlock")
     object Jobs : Screen("jobs", "Jobs", Icons.Default.Home)
+    object Schedule : Screen("schedule", "Schedule", Icons.Default.DateRange)
     object Notifications : Screen("notifications", "Notifications", Icons.Default.Notifications)
-    object Timer : Screen("timer", "Timer", Icons.Default.DateRange)
+    object Timer : Screen("timer", "Timer", Icons.Default.Schedule)
     object Profile : Screen("profile", "Profile", Icons.Default.AccountCircle)
     object JobDetail : Screen("job_detail/{jobId}", "Job Detail") {
         fun createRoute(jobId: String) = "job_detail/$jobId"
@@ -63,7 +66,9 @@ private enum class PendingGateNav {
 @Composable
 fun NavGraph(
     startDestination: String = Screen.Login.route,
-    onThemeChanged: (ThemeMode) -> Unit = {}
+    onThemeChanged: (ThemeMode) -> Unit = {},
+    isSchedulerEnabled: Boolean = false,
+    onRefreshFeatureFlags: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -75,12 +80,18 @@ fun NavGraph(
     val gateViewModel: SessionGateViewModel = hiltViewModel()
     val gateState by gateViewModel.state.collectAsState()
 
-    val bottomNavItems = listOf(
-        Screen.Jobs,
-        Screen.Notifications,
-        Screen.Timer,
-        Screen.Profile
-    )
+    // Dynamic bottom nav items based on feature flags
+    val bottomNavItems = remember(isSchedulerEnabled) {
+        buildList {
+            add(Screen.Jobs)
+            if (isSchedulerEnabled) {
+                add(Screen.Schedule)
+            }
+            add(Screen.Notifications)
+            add(Screen.Timer)
+            add(Screen.Profile)
+        }
+    }
 
     val showBottomNav = currentDestination?.route in bottomNavItems.map { it.route }
 
@@ -218,6 +229,7 @@ fun NavGraph(
             composable(Screen.Login.route) {
                 LoginScreen(
                     onLoginSuccess = {
+                        onRefreshFeatureFlags()
                         val target = if (gateState.hasPin) Screen.Jobs.route else Screen.PinSetup.route
                         navController.navigate(target) {
                             popUpTo(Screen.Login.route) { inclusive = true }
@@ -229,6 +241,7 @@ fun NavGraph(
             composable(Screen.PinSetup.route) {
                 PinSetupScreen(
                     onPinSet = {
+                        onRefreshFeatureFlags()
                         navController.navigate(Screen.Jobs.route) {
                             popUpTo(Screen.PinSetup.route) { inclusive = true }
                         }
@@ -239,6 +252,7 @@ fun NavGraph(
             composable(Screen.PinUnlock.route) {
                 PinUnlockScreen(
                     onUnlocked = {
+                        onRefreshFeatureFlags()
                         navController.navigate(Screen.Jobs.route) {
                             popUpTo(0) { inclusive = true }
                         }
@@ -252,6 +266,13 @@ fun NavGraph(
             }
             composable(Screen.Jobs.route) {
                 JobsScreen(
+                    onJobClick = { jobId ->
+                        navController.navigate(Screen.JobDetail.createRoute(jobId))
+                    }
+                )
+            }
+            composable(Screen.Schedule.route) {
+                DailyScheduleScreen(
                     onJobClick = { jobId ->
                         navController.navigate(Screen.JobDetail.createRoute(jobId))
                     }

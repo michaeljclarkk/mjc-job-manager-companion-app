@@ -12,9 +12,11 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,6 +27,7 @@ import com.bossless.companion.data.local.ThemeMode
 import com.bossless.companion.data.repository.AuthRepository
 import com.bossless.companion.service.TimerService
 import com.bossless.companion.service.LocationTrackingService
+import com.bossless.companion.ui.navigation.FeatureFlagsViewModel
 import com.bossless.companion.ui.navigation.NavGraph
 import com.bossless.companion.ui.navigation.Screen
 import com.bossless.companion.ui.screens.permissions.PermissionsGateScreen
@@ -45,6 +48,9 @@ class MainActivity : ComponentActivity() {
     
     @Inject
     lateinit var securePrefs: SecurePrefs
+    
+    // ViewModel for feature flags
+    private val featureFlagsViewModel: FeatureFlagsViewModel by viewModels()
     
     // Theme state that can be updated from ProfileScreen
     private var currentThemeMode by mutableStateOf(ThemeMode.SYSTEM)
@@ -319,11 +325,16 @@ class MainActivity : ComponentActivity() {
                         else -> startDestination
                     }
                     
+                    // Collect feature flags
+                    val isSchedulerEnabled by featureFlagsViewModel.isSchedulerEnabled.collectAsState()
+                    
                     NavGraph(
                         startDestination = finalStartDestination,
                         onThemeChanged = { mode ->
                             currentThemeMode = mode
-                        }
+                        },
+                        isSchedulerEnabled = isSchedulerEnabled,
+                        onRefreshFeatureFlags = { featureFlagsViewModel.refresh() }
                     )
                 }
             }

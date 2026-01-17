@@ -245,4 +245,20 @@ interface ApiService {
         @Header("Prefer") prefer: String = "return=representation",
         @Body request: CreateUserLocationRequest
     ): Response<List<UserLocation>>
+
+    // Daily Schedule - Job assignments with planned times
+    @GET("rest/v1/job_assignments")
+    suspend fun getTodaysSchedule(
+        @Query("select") select: String = "id,job_id,user_id,planned_date,planned_start_time,planned_finish_time,jobs(id,job_number,name,status,location,latitude,longitude)",
+        @Query("user_id") userId: String,  // Caller must prefix with "eq."
+        @Query("planned_date") plannedDate: String,  // Caller must prefix with "eq."
+        @Query("order") order: String = "planned_start_time.asc.nullslast"
+    ): Response<List<com.bossless.companion.data.models.ScheduledJobAssignment>>
+
+    // Business Profile with feature flags
+    @GET("rest/v1/business_profiles")
+    suspend fun getBusinessProfileWithFeatures(
+        @Query("select") select: String = "document_prefix,business_name,logo_url,business_hours,feature_scheduler",
+        @Query("limit") limit: Int = 1
+    ): Response<List<com.bossless.companion.data.models.BusinessProfile>>
 }

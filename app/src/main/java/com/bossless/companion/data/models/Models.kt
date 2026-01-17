@@ -178,7 +178,36 @@ data class BusinessProfile(
     val document_prefix: String? = null,
     val business_name: String? = null,
     val logo_url: String? = null,
-    val business_hours: JsonObject? = null
+    val business_hours: JsonObject? = null,
+    val feature_scheduler: Boolean? = null
+)
+
+// ============== Daily Schedule Models ==============
+
+/**
+ * A job assignment with scheduled time for the Daily Schedule feature.
+ * Fetched from job_assignments with joined job details.
+ */
+@Serializable
+data class ScheduledJobAssignment(
+    val id: String,
+    val job_id: String,
+    val user_id: String,
+    val planned_date: String? = null,
+    val planned_start_time: String? = null,  // HH:mm format
+    val planned_finish_time: String? = null, // HH:mm format
+    val jobs: ScheduledJobDetails? = null
+)
+
+@Serializable
+data class ScheduledJobDetails(
+    val id: String,
+    val job_number: String,
+    val name: String? = null,
+    val status: String,
+    val location: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 @Serializable

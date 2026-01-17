@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,13 +44,25 @@ fun JobsScreen(
         }
     }
     
-    // Filter jobs based on search query
-    val filteredJobs = remember(uiState.jobs, uiState.searchQuery) {
+    // Filter jobs based on selected filter and search query
+    val filteredJobs = remember(uiState.jobs, uiState.searchQuery, uiState.selectedFilter) {
+        val filterByStatus = when (uiState.selectedFilter) {
+            JobFilter.ACTIVE -> uiState.jobs.filter { assignment ->
+                val status = assignment.jobs?.status?.lowercase() ?: ""
+                status != "cancelled" && status != "completed"
+            }
+            JobFilter.COMPLETED -> uiState.jobs.filter { assignment ->
+                val status = assignment.jobs?.status?.lowercase() ?: ""
+                status == "completed"
+            }
+            JobFilter.ALL -> uiState.jobs
+        }
+        
         if (uiState.searchQuery.isBlank()) {
-            uiState.jobs
+            filterByStatus
         } else {
             val query = uiState.searchQuery.lowercase()
-            uiState.jobs.filter { assignment ->
+            filterByStatus.filter { assignment ->
                 val job = assignment.jobs ?: return@filter false
                 job.job_number.lowercase().contains(query) ||
                     (job.name?.lowercase()?.contains(query) == true) ||
@@ -100,28 +113,72 @@ fun JobsScreen(
         },
         snackbarHost = { ToastHost(snackbarHostState) }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (uiState.isLoading) {
-                LoadingIndicator()
-            } else if (uiState.error != null && uiState.jobs.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = uiState.error!!, color = MaterialTheme.colorScheme.error)
+        Column(modifier = Modifier.padding(padding)) {
+            // Filter tabs
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                JobFilter.entries.forEachIndexed { index, filter ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = JobFilter.entries.size
+                        ),
+                        onClick = { viewModel.setFilter(filter) },
+                        selected = uiState.selectedFilter == filter
+                    ) {
+                        Text(
+                            text = when (filter) {
+                                JobFilter.ACTIVE -> "Active"
+                                JobFilter.COMPLETED -> "Completed"
+                                JobFilter.ALL -> "All"
+                            },
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
-            } else if (uiState.jobs.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No jobs assigned to you.")
-                }
-            } else if (filteredJobs.isEmpty() && uiState.searchQuery.isNotBlank()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No jobs match \"${uiState.searchQuery}\"")
-                }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredJobs) { assignment ->
-                        JobCard(assignment, onJobClick)
+            }
+            
+            Box(modifier = Modifier.weight(1f)) {
+                if (uiState.isLoading) {
+                    LoadingIndicator()
+                } else if (uiState.error != null && uiState.jobs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = uiState.error!!, color = MaterialTheme.colorScheme.error)
+                    }
+                } else if (uiState.jobs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No jobs assigned to you.")
+                    }
+                } else if (filteredJobs.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No jobs match \"${uiState.searchQuery}\"")
+                    }
+                } else if (filteredJobs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = when (uiState.selectedFilter) {
+                                JobFilter.ACTIVE -> "No active jobs"
+                                JobFilter.COMPLETED -> "No completed jobs"
+                                JobFilter.ALL -> "No jobs"
+                            }
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filteredJobs) { assignment ->
+                            val isArchived = assignment.jobs?.status?.lowercase() in listOf("cancelled", "completed")
+                            JobCard(
+                                assignment = assignment,
+                                onClick = onJobClick,
+                                isArchived = isArchived
+                            )
+                        }
                     }
                 }
             }
@@ -130,14 +187,26 @@ fun JobsScreen(
 }
 
 @Composable
-fun JobCard(assignment: JobAssignment, onClick: (String) -> Unit) {
+fun JobCard(
+    assignment: JobAssignment,
+    onClick: (String) -> Unit,
+    isArchived: Boolean = false
+) {
     val job = assignment.jobs ?: return
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (isArchived) 0.7f else 1f)
             .clickable { onClick(job.id) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isArchived) 1.dp else 2.dp),
+        colors = if (isArchived) {
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        } else {
+            CardDefaults.cardColors()
+        }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

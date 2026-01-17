@@ -53,8 +53,8 @@ android {
         applicationId = "com.bossless.companion"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
 
         // Optional: URL to a JSON update manifest hosted externally.
         // Configure via gradle.properties: updateManifestUrl=https://example.com/mjc-jm/update.json

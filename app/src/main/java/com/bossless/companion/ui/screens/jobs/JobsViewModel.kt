@@ -95,6 +95,16 @@ class JobsViewModel @Inject constructor(
     fun closeSearch() {
         _uiState.value = _uiState.value.copy(isSearchActive = false, searchQuery = "")
     }
+    
+    fun setFilter(filter: JobFilter) {
+        _uiState.value = _uiState.value.copy(selectedFilter = filter)
+    }
+}
+
+enum class JobFilter {
+    ACTIVE,    // Everything except cancelled/completed
+    COMPLETED, // Only completed jobs
+    ALL        // Everything including cancelled
 }
 
 data class JobsUiState(
@@ -104,5 +114,6 @@ data class JobsUiState(
     val lastUpdated: Long? = null,
     val businessLogoUrl: String? = null,
     val searchQuery: String = "",
-    val isSearchActive: Boolean = false
+    val isSearchActive: Boolean = false,
+    val selectedFilter: JobFilter = JobFilter.ACTIVE
 )
