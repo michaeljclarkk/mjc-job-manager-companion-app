@@ -13,18 +13,33 @@ import com.bossless.companion.data.models.InvoiceDocument
 import java.text.NumberFormat
 import java.util.Locale
 
+/**
+ * Payment options sheet showing available payment methods.
+ * 
+ * When Stripe IS enabled:
+ * - Show QR Code, Take Payment, Send to Customer, Regenerate Link
+ * - PLUS EFT and Cash options below
+ * 
+ * When Stripe is NOT enabled:
+ * - Show EFT and Cash options only
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentOptionsSheet(
     invoice: InvoiceDocument,
     paymentUrl: String,
+    isStripeEnabled: Boolean,
     isRegenerating: Boolean,
     isSendingEmail: Boolean,
     onDismiss: () -> Unit,
+    // Stripe options
     onShowQrCode: () -> Unit,
     onTakePayment: () -> Unit,
     onSendToCustomer: () -> Unit,
     onRegenerateLink: () -> Unit,
+    // Manual payment options
+    onSelectEft: () -> Unit,
+    onSelectCash: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "AU")) }
@@ -89,68 +104,138 @@ fun PaymentOptionsSheet(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Action buttons
-            val hasValidToken = invoice.payment_token != null && 
-                invoice.payment_token_invalidated_at == null
-            
-            // Show QR Code
-            PaymentOptionButton(
-                icon = Icons.Default.QrCode2,
-                title = "Show QR Code",
-                subtitle = "Customer scans to pay",
-                enabled = hasValidToken,
-                onClick = onShowQrCode
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Take Payment (WebView)
-            PaymentOptionButton(
-                icon = Icons.Default.CreditCard,
-                title = "Take Payment",
-                subtitle = "Enter card details for customer",
-                enabled = hasValidToken,
-                onClick = onTakePayment
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Send to Customer
-            PaymentOptionButton(
-                icon = Icons.Default.Email,
-                title = "Send to Customer",
-                subtitle = "Email invoice with payment link",
-                enabled = !isSendingEmail && invoice.third_parties?.email != null,
-                isLoading = isSendingEmail,
-                onClick = onSendToCustomer
-            )
-            
-            // Show no email warning
-            if (invoice.third_parties?.email == null) {
-                Spacer(modifier = Modifier.height(4.dp))
+            if (isStripeEnabled) {
+                // Stripe payment options (online)
+                StripePaymentOptions(
+                    invoice = invoice,
+                    isRegenerating = isRegenerating,
+                    isSendingEmail = isSendingEmail,
+                    onShowQrCode = onShowQrCode,
+                    onTakePayment = onTakePayment,
+                    onSendToCustomer = onSendToCustomer,
+                    onRegenerateLink = onRegenerateLink
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                HorizontalDivider()
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Section header for manual options
                 Text(
-                    text = "Customer has no email address",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(start = 56.dp)
+                    text = "Or accept payment directly",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outline
                 )
+                
+                Spacer(modifier = Modifier.height(12.dp))
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Regenerate Link
-            if (!hasValidToken) {
-                PaymentOptionButton(
-                    icon = Icons.Default.Refresh,
-                    title = "Regenerate Link",
-                    subtitle = "Create new payment link",
-                    enabled = !isRegenerating,
-                    isLoading = isRegenerating,
-                    onClick = onRegenerateLink
-                )
-            }
+            // Manual payment options (EFT, Cash) - always shown
+            ManualPaymentOptions(
+                onSelectEft = onSelectEft,
+                onSelectCash = onSelectCash
+            )
         }
     }
+}
+
+@Composable
+private fun StripePaymentOptions(
+    invoice: InvoiceDocument,
+    isRegenerating: Boolean,
+    isSendingEmail: Boolean,
+    onShowQrCode: () -> Unit,
+    onTakePayment: () -> Unit,
+    onSendToCustomer: () -> Unit,
+    onRegenerateLink: () -> Unit
+) {
+    val hasValidToken = invoice.payment_token != null && 
+        invoice.payment_token_invalidated_at == null
+    
+    // Show QR Code
+    PaymentOptionButton(
+        icon = Icons.Default.QrCode2,
+        title = "Show QR Code",
+        subtitle = "Customer scans to pay",
+        enabled = hasValidToken,
+        onClick = onShowQrCode
+    )
+    
+    Spacer(modifier = Modifier.height(12.dp))
+    
+    // Take Payment (WebView)
+    PaymentOptionButton(
+        icon = Icons.Default.CreditCard,
+        title = "Take Payment",
+        subtitle = "Enter card details for customer",
+        enabled = hasValidToken,
+        onClick = onTakePayment
+    )
+    
+    Spacer(modifier = Modifier.height(12.dp))
+    
+    // Send to Customer
+    PaymentOptionButton(
+        icon = Icons.Default.Email,
+        title = "Send to Customer",
+        subtitle = "Email invoice with payment link",
+        enabled = !isSendingEmail && invoice.third_parties?.email != null,
+        isLoading = isSendingEmail,
+        onClick = onSendToCustomer
+    )
+    
+    // Show no email warning
+    if (invoice.third_parties?.email == null) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Customer has no email address",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(start = 56.dp)
+        )
+    }
+    
+    Spacer(modifier = Modifier.height(12.dp))
+    
+    // Regenerate Link
+    if (!hasValidToken) {
+        PaymentOptionButton(
+            icon = Icons.Default.Refresh,
+            title = "Regenerate Link",
+            subtitle = "Create new payment link",
+            enabled = !isRegenerating,
+            isLoading = isRegenerating,
+            onClick = onRegenerateLink
+        )
+    }
+}
+
+@Composable
+private fun ManualPaymentOptions(
+    onSelectEft: () -> Unit,
+    onSelectCash: () -> Unit
+) {
+    // EFT Option
+    PaymentOptionButton(
+        icon = Icons.Default.AccountBalance,
+        title = "EFT / Bank Transfer",
+        subtitle = "Show bank account details",
+        enabled = true,
+        onClick = onSelectEft
+    )
+    
+    Spacer(modifier = Modifier.height(12.dp))
+    
+    // Cash Option
+    PaymentOptionButton(
+        icon = Icons.Default.Payments,
+        title = "Cash",
+        subtitle = "Calculate change and record payment",
+        enabled = true,
+        onClick = onSelectCash
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -226,7 +226,7 @@ class LocationTrackingService : Service() {
             logDebug("Foreground service started")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "LocationTrackingService.startForegroundService",
                 error = e,
                 userId = securePrefs.getUserId()
@@ -292,7 +292,7 @@ class LocationTrackingService : Service() {
             logDebug("Location updates started")
         } catch (e: SecurityException) {
             android.util.Log.e(TAG, "Location permission missing: ${e.message}")
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "LocationTrackingService.startLocationUpdates",
                 error = e,
                 userId = securePrefs.getUserId()

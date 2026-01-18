@@ -107,7 +107,7 @@ class LocationRepository @Inject constructor(
                 val error = Exception("Failed to send location: ${response.code()}")
                 val signature = "http_${response.code()}_${(errorBodyPreview ?: "").take(64)}"
                 if (securePrefs.shouldSendLocationErrorReport(signature, ERROR_EMAIL_THROTTLE_MS)) {
-                    ErrorReporter.logAndEmailError(
+                    ErrorReporter.logAndReportError(
                         context = "LocationRepository.sendLocation",
                         error = error,
                         userId = userId,
@@ -131,7 +131,7 @@ class LocationRepository @Inject constructor(
             }
             val signature = "ex_${e.javaClass.simpleName}_${(e.message ?: "").take(64)}"
             if (securePrefs.shouldSendLocationErrorReport(signature, ERROR_EMAIL_THROTTLE_MS)) {
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "LocationRepository.sendLocation",
                     error = e,
                     userId = userId,

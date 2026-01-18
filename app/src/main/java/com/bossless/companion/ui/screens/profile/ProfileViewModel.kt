@@ -39,6 +39,7 @@ class ProfileViewModel @Inject constructor(
             backgroundNotifications = securePrefs.getBackgroundNotifications(),
             locationTrackingEnabled = securePrefs.getLocationTrackingEnabled(),
             locationTrackingBusinessHoursOnly = securePrefs.getLocationTrackingBusinessHoursOnly(),
+            invoiceEditingEnabled = securePrefs.getInvoiceEditingEnabled(),
             businessLogoUrl = securePrefs.getBusinessLogoUrl(),
             themeMode = securePrefs.getThemeMode(),
             lastSyncTimestamp = securePrefs.getLastSyncTimestamp()
@@ -78,6 +79,11 @@ class ProfileViewModel @Inject constructor(
         }
     }
     
+    fun toggleInvoiceEditing(enabled: Boolean) {
+        securePrefs.setInvoiceEditingEnabled(enabled)
+        _uiState.value = _uiState.value.copy(invoiceEditingEnabled = enabled)
+    }
+    
     fun setThemeMode(mode: ThemeMode) {
         securePrefs.saveThemeMode(mode)
         _uiState.value = _uiState.value.copy(themeMode = mode)
@@ -96,6 +102,7 @@ data class ProfileUiState(
     val backgroundNotifications: Boolean = true,
     val locationTrackingEnabled: Boolean = true,
     val locationTrackingBusinessHoursOnly: Boolean = false,
+    val invoiceEditingEnabled: Boolean = false,
     val businessLogoUrl: String? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val lastSyncTimestamp: Long? = null

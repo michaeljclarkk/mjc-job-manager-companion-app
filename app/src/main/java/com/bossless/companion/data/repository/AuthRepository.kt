@@ -72,7 +72,7 @@ class AuthRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 val error = Exception("Login failed: ${response.code()} ${response.message()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "AuthRepository.login",
                     error = error,
                     additionalInfo = mapOf("email" to email, "responseCode" to response.code().toString())
@@ -80,7 +80,7 @@ class AuthRepository @Inject constructor(
                 Result.failure(error)
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "AuthRepository.login",
                 error = e,
                 additionalInfo = mapOf("email" to email, "serverUrl" to serverUrl)
@@ -111,7 +111,7 @@ class AuthRepository @Inject constructor(
                 )
                 true
             } else {
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "AuthRepository.refreshToken",
                     message = "Token refresh failed: ${response.code()} ${response.message()}",
                     userId = securePrefs.getUserId()
@@ -120,7 +120,7 @@ class AuthRepository @Inject constructor(
                 false
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "AuthRepository.refreshToken",
                 error = e,
                 userId = securePrefs.getUserId()

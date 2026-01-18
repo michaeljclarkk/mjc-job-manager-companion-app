@@ -30,7 +30,7 @@ class PurchaseOrderRepository @Inject constructor(
                 Result.success(response.body() ?: emptyList())
             } else {
                 val error = Exception("Failed to fetch suppliers: ${response.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "PurchaseOrderRepository.getSuppliers",
                     error = error,
                     userId = securePrefs.getUserId()
@@ -39,7 +39,7 @@ class PurchaseOrderRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("PORepo", "getSuppliers() exception", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.getSuppliers",
                 error = e,
                 userId = securePrefs.getUserId()
@@ -68,7 +68,7 @@ class PurchaseOrderRepository @Inject constructor(
                 Result.success(response.body()!!.first())
             } else {
                 val error = Exception("Failed to create supplier: ${response.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "PurchaseOrderRepository.createSupplier",
                     error = error,
                     userId = userId,
@@ -77,7 +77,7 @@ class PurchaseOrderRepository @Inject constructor(
                 Result.failure(error)
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.createSupplier",
                 error = e,
                 userId = userId,
@@ -226,7 +226,7 @@ class PurchaseOrderRepository @Inject constructor(
             Result.success(poNumber)
         } catch (e: Exception) {
             android.util.Log.e("PurchaseOrderRepository", "Failed to create PO", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.createPurchaseOrder",
                 error = e,
                 userId = securePrefs.getUserId(),
@@ -325,7 +325,7 @@ class PurchaseOrderRepository @Inject constructor(
             Result.success(document)
         } catch (e: Exception) {
             android.util.Log.e("PurchaseOrderRepository", "Failed to create draft PO", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.createDraftPurchaseOrder",
                 error = e,
                 userId = securePrefs.getUserId(),
@@ -402,7 +402,7 @@ class PurchaseOrderRepository @Inject constructor(
             Result.success(document)
         } catch (e: Exception) {
             android.util.Log.e("PurchaseOrderRepository", "Failed to update PO", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.updatePurchaseOrder",
                 error = e,
                 userId = securePrefs.getUserId(),
@@ -463,7 +463,7 @@ class PurchaseOrderRepository @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("PurchaseOrderRepository", "Failed to delete PO", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "PurchaseOrderRepository.deletePurchaseOrderIfEmpty",
                 error = e,
                 userId = securePrefs.getUserId(),

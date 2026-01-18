@@ -1,5 +1,7 @@
 package com.bossless.companion.ui.screens.jobdetail
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,8 +29,13 @@ fun PaymentsTab(
     isLoading: Boolean,
     isOnline: Boolean,
     onInvoiceClick: (InvoiceDocument) -> Unit,
+    canEditInvoices: Boolean = false,
+    onEditInvoice: ((InvoiceDocument) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    // State for invoice preview sheet
+    var previewInvoice by remember { mutableStateOf<InvoiceDocument?>(null) }
+    
     Box(modifier = modifier.fillMaxSize()) {
         when {
             isLoading -> {
@@ -55,12 +62,28 @@ fun PaymentsTab(
                         InvoiceCard(
                             invoice = invoice,
                             onClick = { onInvoiceClick(invoice) },
+                            onLongClick = { previewInvoice = invoice },
                             enabled = isOnline
                         )
                     }
                 }
             }
         }
+    }
+    
+    // Invoice preview sheet (shown on long press)
+    previewInvoice?.let { invoice ->
+        InvoicePreviewSheet(
+            invoice = invoice,
+            onDismiss = { previewInvoice = null },
+            canEdit = canEditInvoices,
+            onEditClick = if (canEditInvoices && onEditInvoice != null) {
+                {
+                    previewInvoice = null
+                    onEditInvoice(invoice)
+                }
+            } else null
+        )
     }
 }
 
@@ -118,11 +141,12 @@ private fun OfflineBanner(modifier: Modifier = Modifier) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun InvoiceCard(
     invoice: InvoiceDocument,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -130,9 +154,13 @@ private fun InvoiceCard(
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
     
     Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                enabled = enabled,
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         colors = if (enabled) {
             CardDefaults.cardColors()
         } else {

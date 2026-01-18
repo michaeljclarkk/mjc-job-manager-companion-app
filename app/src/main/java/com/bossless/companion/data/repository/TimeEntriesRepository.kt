@@ -61,7 +61,7 @@ class TimeEntriesRepository @Inject constructor(
                 Result.success(response.body()!!.first())
             } else {
                 val error = Exception("Failed to start timer: ${response.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "TimeEntriesRepository.startTimeEntry",
                     error = error,
                     userId = userId,
@@ -70,7 +70,7 @@ class TimeEntriesRepository @Inject constructor(
                 Result.failure(error)
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "TimeEntriesRepository.startTimeEntry",
                 error = e,
                 userId = userId,
@@ -159,7 +159,7 @@ class TimeEntriesRepository @Inject constructor(
                 }
             } else {
                 val error = Exception("Failed to stop timer: ${response.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "TimeEntriesRepository.stopTimeEntry",
                     error = error,
                     userId = userId,
@@ -168,7 +168,7 @@ class TimeEntriesRepository @Inject constructor(
                 Result.failure(error)
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "TimeEntriesRepository.stopTimeEntry",
                 error = e,
                 userId = userId,

@@ -148,7 +148,7 @@ class TimerViewModel @Inject constructor(
                         checkActiveTimer()
                     } else {
                         // Both failed: this is now worth reporting.
-                        ErrorReporter.logAndEmailError(
+                        ErrorReporter.logAndReportError(
                             context = "TimerViewModel.stopTimer",
                             error = fullResult.exceptionOrNull() ?: Exception("Failed to create full time entry"),
                             userId = securePrefs.getUserId(),

@@ -109,7 +109,7 @@ class JobDocumentsRepository @Inject constructor(
                     Result.success(Unit)
                 } else {
                     val error = Exception("Failed to create document record: ${createResponse.code()}")
-                    ErrorReporter.logAndEmailError(
+                    ErrorReporter.logAndReportError(
                         context = "JobDocumentsRepository.uploadDocument",
                         error = error,
                         userId = userId,
@@ -119,7 +119,7 @@ class JobDocumentsRepository @Inject constructor(
                 }
             } else {
                 val error = Exception("Failed to upload file: ${uploadResponse.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "JobDocumentsRepository.uploadDocument",
                     error = error,
                     userId = userId,
@@ -129,7 +129,7 @@ class JobDocumentsRepository @Inject constructor(
             }
         } catch (e: Exception) {
             // Keep local record as unsynced
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "JobDocumentsRepository.uploadDocument",
                 error = e,
                 userId = userId,
@@ -172,7 +172,7 @@ class JobDocumentsRepository @Inject constructor(
                     }
                 } catch (e: Exception) {
                     // Log sync failures but continue to next document
-                    ErrorReporter.logAndEmailError(
+                    ErrorReporter.logAndReportError(
                         context = "JobDocumentsRepository.syncPendingUploads",
                         error = e,
                         userId = userId,

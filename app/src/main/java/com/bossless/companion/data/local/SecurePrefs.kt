@@ -313,6 +313,15 @@ class SecurePrefs @Inject constructor(
         return sharedPreferences.getBoolean("location_tracking_business_hours_only", true)
     }
 
+    // Invoice editing preference
+    fun setInvoiceEditingEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean("invoice_editing_enabled", enabled).apply()
+    }
+
+    fun getInvoiceEditingEnabled(): Boolean {
+        return sharedPreferences.getBoolean("invoice_editing_enabled", false)
+    }
+
     // App updates (self-hosted)
     fun setLastUpdateCheckAtMs(value: Long) {
         sharedPreferences.edit().putLong("last_update_check_at_ms", value).apply()

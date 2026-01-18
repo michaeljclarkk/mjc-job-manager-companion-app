@@ -14,6 +14,8 @@ import com.bossless.companion.data.models.Document
 import com.bossless.companion.data.models.DocumentItem
 import com.bossless.companion.data.models.PurchaseOrderLineItem
 import com.bossless.companion.data.models.InvoiceDocument
+import com.bossless.companion.data.models.BusinessProfile
+import com.bossless.companion.data.models.UpdateInvoiceLineItem
 import com.bossless.companion.data.repository.JobsRepository
 import com.bossless.companion.data.repository.JobDetailRepository
 import com.bossless.companion.data.models.JobDocument
@@ -643,18 +645,19 @@ class JobDetailViewModel @Inject constructor(
     fun loadInvoices() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingInvoices = true, paymentError = null)
-            val result = paymentsRepository.getInvoicesForJob(jobId)
-            if (result.isSuccess) {
-                _uiState.value = _uiState.value.copy(
-                    invoices = result.getOrNull() ?: emptyList(),
-                    isLoadingInvoices = false
-                )
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isLoadingInvoices = false,
-                    paymentError = result.exceptionOrNull()?.message ?: "Failed to load invoices"
-                )
-            }
+            
+            // Load invoices and business profile in parallel
+            val invoicesResult = paymentsRepository.getInvoicesForJob(jobId)
+            val profileResult = paymentsRepository.getBusinessProfile()
+            
+            _uiState.value = _uiState.value.copy(
+                invoices = invoicesResult.getOrNull() ?: emptyList(),
+                businessProfile = profileResult.getOrNull(),
+                isLoadingInvoices = false,
+                paymentError = if (invoicesResult.isFailure) {
+                    invoicesResult.exceptionOrNull()?.message ?: "Failed to load invoices"
+                } else null
+            )
         }
     }
 
@@ -733,12 +736,107 @@ class JobDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Record a manual payment (Cash or EFT) for the selected invoice.
+     */
+    fun recordManualPayment(amount: Double, paymentMethod: String) {
+        val invoice = _uiState.value.selectedInvoice ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRecordingPayment = true, paymentError = null)
+            val result = paymentsRepository.recordManualPayment(
+                documentId = invoice.id,
+                amount = amount,
+                paymentMethod = paymentMethod
+            )
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    isRecordingPayment = false,
+                    paymentRecorded = true,
+                    selectedInvoice = null
+                )
+                // Refresh invoices to remove paid invoice
+                loadInvoices()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isRecordingPayment = false,
+                    paymentError = result.exceptionOrNull()?.message ?: "Failed to record payment"
+                )
+            }
+        }
+    }
+
+    fun clearPaymentRecorded() {
+        _uiState.value = _uiState.value.copy(paymentRecorded = false)
+    }
+
     fun clearPaymentError() {
         _uiState.value = _uiState.value.copy(paymentError = null)
     }
 
     fun clearInvoiceEmailSent() {
         _uiState.value = _uiState.value.copy(invoiceEmailSent = false)
+    }
+
+    // ========== Invoice Editing ==========
+    
+    /**
+     * Check if invoice editing is enabled.
+     * Currently just uses local app preference.
+     * TODO: Add business-level feature_invoice_editing flag when DB column exists
+     */
+    fun isInvoiceEditingEnabled(): Boolean {
+        return securePrefs.getInvoiceEditingEnabled()
+    }
+
+    /**
+     * Start editing an invoice
+     */
+    fun startEditingInvoice(invoice: InvoiceDocument) {
+        _uiState.value = _uiState.value.copy(editingInvoice = invoice)
+    }
+
+    /**
+     * Cancel editing and close the dialog
+     */
+    fun cancelEditingInvoice() {
+        _uiState.value = _uiState.value.copy(editingInvoice = null)
+    }
+
+    /**
+     * Update invoice line items
+     */
+    fun updateInvoice(lineItems: List<UpdateInvoiceLineItem>, notes: String?) {
+        val invoice = _uiState.value.editingInvoice ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUpdatingInvoice = true, invoiceUpdateError = null)
+            val result = paymentsRepository.updateInvoice(
+                documentId = invoice.id,
+                lineItems = lineItems,
+                notes = notes
+            )
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    isUpdatingInvoice = false,
+                    invoiceUpdated = true,
+                    editingInvoice = null
+                )
+                // Refresh invoices to show updated totals
+                loadInvoices()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isUpdatingInvoice = false,
+                    invoiceUpdateError = result.exceptionOrNull()?.message ?: "Failed to update invoice"
+                )
+            }
+        }
+    }
+
+    fun clearInvoiceUpdated() {
+        _uiState.value = _uiState.value.copy(invoiceUpdated = false)
+    }
+
+    fun clearInvoiceUpdateError() {
+        _uiState.value = _uiState.value.copy(invoiceUpdateError = null)
     }
 
     private val _isOnline = MutableStateFlow(true)
@@ -796,6 +894,14 @@ data class JobDetailUiState(
     val selectedInvoicePaymentUrl: String? = null,
     val isRegeneratingToken: Boolean = false,
     val isSendingInvoiceEmail: Boolean = false,
+    val isRecordingPayment: Boolean = false,
     val paymentError: String? = null,
-    val invoiceEmailSent: Boolean = false
+    val invoiceEmailSent: Boolean = false,
+    val paymentRecorded: Boolean = false,
+    val businessProfile: BusinessProfile? = null,
+    // Invoice editing state
+    val editingInvoice: InvoiceDocument? = null,
+    val isUpdatingInvoice: Boolean = false,
+    val invoiceUpdated: Boolean = false,
+    val invoiceUpdateError: String? = null
 )

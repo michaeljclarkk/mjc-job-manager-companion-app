@@ -40,7 +40,7 @@ class JobsRepository @Inject constructor(
                 Result.success(jobs)
             } else {
                 val error = Exception("Failed to fetch jobs: ${response.code()}")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "JobsRepository.getAssignedJobs",
                     error = error,
                     userId = userId,
@@ -51,7 +51,7 @@ class JobsRepository @Inject constructor(
                 Result.failure(error)
             }
         } catch (e: Exception) {
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "JobsRepository.getAssignedJobs",
                 error = e,
                 userId = userId
@@ -116,7 +116,7 @@ class JobsRepository @Inject constructor(
                 val errorBody = response.errorBody()?.string() ?: "Unknown error"
                 val error = Exception("Failed to create update: ${response.code()} - $errorBody")
                 android.util.Log.e("JobsRepository", "Failed to create job update: ${response.code()} - $errorBody")
-                ErrorReporter.logAndEmailError(
+                ErrorReporter.logAndReportError(
                     context = "JobsRepository.createJobUpdate",
                     error = error,
                     userId = userId,
@@ -130,7 +130,7 @@ class JobsRepository @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.e("JobsRepository", "Exception creating job update", e)
-            ErrorReporter.logAndEmailError(
+            ErrorReporter.logAndReportError(
                 context = "JobsRepository.createJobUpdate",
                 error = e,
                 userId = userId,

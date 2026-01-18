@@ -86,6 +86,8 @@ fun JobDetailScreen(
     var showPaymentOptionsSheet by remember { mutableStateOf(false) }
     var showQrCodeScreen by remember { mutableStateOf(false) }
     var showPaymentWebView by remember { mutableStateOf(false) }
+    var showEftDetailsSheet by remember { mutableStateOf(false) }
+    var showCashPaymentSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     
     val context = LocalContext.current
@@ -145,27 +147,21 @@ fun JobDetailScreen(
         }
     }
     
-    // Define tabs based on feature flag
-    val baseTabs = listOf(
+    // Define tabs - Payments always shown (has manual payment options even without Stripe)
+    val tabs = listOf(
         TabItem("Details", Icons.Default.Edit),
         TabItem("Time", Icons.Default.Schedule),
         TabItem("Updates", Icons.Default.Update),
-        TabItem("Docs", Icons.Default.Description)
+        TabItem("Docs", Icons.Default.Description),
+        TabItem("Payments", Icons.Default.CreditCard)
     )
-    val tabs = if (isStripePaymentsEnabled) {
-        baseTabs + TabItem("Payments", Icons.Default.CreditCard)
-    } else {
-        baseTabs
-    }
     
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Load invoices when Payments tab is enabled
-    LaunchedEffect(isStripePaymentsEnabled) {
-        if (isStripePaymentsEnabled) {
-            viewModel.loadInvoices()
-        }
+    // Load invoices for Payments tab
+    LaunchedEffect(Unit) {
+        viewModel.loadInvoices()
     }
 
     // Navigate to timer when started
@@ -382,17 +378,19 @@ fun JobDetailScreen(
                             isDeletingPO = uiState.isDeletingPO,
                             deletingPOId = uiState.deletingPOId
                         )
-                        4 -> if (isStripePaymentsEnabled) {
-                            PaymentsTab(
-                                invoices = uiState.invoices,
-                                isLoading = uiState.isLoadingInvoices,
-                                isOnline = isOnline,
-                                onInvoiceClick = { invoice ->
-                                    viewModel.selectInvoiceForPayment(invoice)
-                                    showPaymentOptionsSheet = true
-                                }
-                            )
-                        }
+                        4 -> PaymentsTab(
+                            invoices = uiState.invoices,
+                            isLoading = uiState.isLoadingInvoices,
+                            isOnline = isOnline,
+                            onInvoiceClick = { invoice ->
+                                viewModel.selectInvoiceForPayment(invoice)
+                                showPaymentOptionsSheet = true
+                            },
+                            canEditInvoices = viewModel.isInvoiceEditingEnabled(),
+                            onEditInvoice = { invoice ->
+                                viewModel.startEditingInvoice(invoice)
+                            }
+                        )
                     }
                 }
             }
@@ -432,15 +430,22 @@ fun JobDetailScreen(
     
     // Payment Options Sheet
     if (showPaymentOptionsSheet && uiState.selectedInvoice != null) {
+        // Determine if Stripe is enabled for this business
+        val isStripeConfigured = uiState.businessProfile?.let {
+            it.feature_stripe_payments == true && it.enable_stripe_payments == true
+        } ?: false
+        
         PaymentOptionsSheet(
             invoice = uiState.selectedInvoice!!,
             paymentUrl = uiState.selectedInvoicePaymentUrl ?: "",
+            isStripeEnabled = isStripeConfigured,
             isRegenerating = uiState.isRegeneratingToken,
             isSendingEmail = uiState.isSendingInvoiceEmail,
             onDismiss = {
                 showPaymentOptionsSheet = false
                 viewModel.clearSelectedInvoice()
             },
+            // Stripe options
             onShowQrCode = {
                 showPaymentOptionsSheet = false
                 showQrCodeScreen = true
@@ -454,6 +459,49 @@ fun JobDetailScreen(
             },
             onRegenerateLink = {
                 viewModel.regeneratePaymentToken()
+            },
+            // Manual payment options
+            onSelectEft = {
+                showPaymentOptionsSheet = false
+                showEftDetailsSheet = true
+            },
+            onSelectCash = {
+                showPaymentOptionsSheet = false
+                showCashPaymentSheet = true
+            }
+        )
+    }
+    
+    // EFT Details Sheet (shows bank account info)
+    if (showEftDetailsSheet && uiState.selectedInvoice != null && uiState.businessProfile != null) {
+        EftDetailsSheet(
+            invoice = uiState.selectedInvoice!!,
+            businessProfile = uiState.businessProfile!!,
+            onDismiss = {
+                showEftDetailsSheet = false
+                showPaymentOptionsSheet = true
+            },
+            onMarkAsPaid = {
+                val amountDue = (uiState.selectedInvoice!!.total_amount ?: 0.0) - 
+                    (uiState.selectedInvoice!!.total_paid ?: 0.0)
+                viewModel.recordManualPayment(amountDue, "EFT")
+                showEftDetailsSheet = false
+            }
+        )
+    }
+    
+    // Cash Payment Sheet (amount calculator)
+    if (showCashPaymentSheet && uiState.selectedInvoice != null) {
+        CashPaymentSheet(
+            invoice = uiState.selectedInvoice!!,
+            isRecording = uiState.isRecordingPayment,
+            onDismiss = {
+                showCashPaymentSheet = false
+                showPaymentOptionsSheet = true
+            },
+            onRecordPayment = { amount ->
+                viewModel.recordManualPayment(amount, "Cash")
+                showCashPaymentSheet = false
             }
         )
     }
@@ -509,6 +557,60 @@ fun JobDetailScreen(
             )
             viewModel.clearInvoiceEmailSent()
         }
+    }
+    
+    // Show payment recorded confirmation
+    LaunchedEffect(uiState.paymentRecorded) {
+        if (uiState.paymentRecorded) {
+            snackbarHostState.showSnackbar(
+                message = "Payment recorded successfully",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearPaymentRecorded()
+        }
+    }
+    
+    // Show invoice updated confirmation
+    LaunchedEffect(uiState.invoiceUpdated) {
+        if (uiState.invoiceUpdated) {
+            snackbarHostState.showSnackbar(
+                message = "Invoice updated successfully",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearInvoiceUpdated()
+        }
+    }
+    
+    // Show invoice update error
+    LaunchedEffect(uiState.invoiceUpdateError) {
+        uiState.invoiceUpdateError?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearInvoiceUpdateError()
+        }
+    }
+    
+    // Edit Invoice Dialog
+    uiState.editingInvoice?.let { invoice ->
+        EditInvoiceDialog(
+            invoice = invoice,
+            isLoading = uiState.isUpdatingInvoice,
+            onDismiss = { viewModel.cancelEditingInvoice() },
+            onSave = { documentId, lineItems, notes ->
+                // Convert InvoiceLineItem (UI) to UpdateInvoiceLineItem (API)
+                val apiLineItems = lineItems.map { item ->
+                    com.bossless.companion.data.models.UpdateInvoiceLineItem(
+                        description = item.description,
+                        quantity = item.quantity,
+                        unit_price = item.unitPrice,
+                        gst_rate = item.gstRate
+                    )
+                }
+                viewModel.updateInvoice(apiLineItems, notes)
+            }
+        )
     }
     
     // Show error snackbar for update errors

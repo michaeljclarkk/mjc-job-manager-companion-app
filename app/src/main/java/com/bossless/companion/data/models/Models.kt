@@ -181,7 +181,15 @@ data class BusinessProfile(
     val business_hours: JsonObject? = null,
     val feature_scheduler: Boolean? = null,
     val feature_stripe_payments: Boolean? = null,
-    val enable_stripe_payments: Boolean? = null
+    val enable_stripe_payments: Boolean? = null,
+    val feature_invoice_editing: Boolean? = null,
+    // Bank details for EFT payments
+    val bsb: String? = null,
+    val account_number: String? = null,
+    val account_name: String? = null,
+    val payid: String? = null,
+    val bpay_biller_code: String? = null,
+    val bpay_reference: String? = null
 )
 
 // ============== Daily Schedule Models ==============
@@ -246,7 +254,8 @@ data class InvoiceDocument(
     val total_paid: Double? = null,
     val paid_at: String? = null,
     val created_at: String,
-    val third_parties: ThirdParty? = null  // Embedded when using select with join
+    val third_parties: ThirdParty? = null,  // Embedded when using select with join
+    val document_items: List<DocumentItem>? = null  // Line items for invoice preview
 )
 
 /**
@@ -282,6 +291,58 @@ data class SendDocumentEmailRequest(
 @Serializable
 data class SendDocumentEmailResponse(
     val success: Boolean,
+    val error: String? = null
+)
+
+/**
+ * Request to record a manual payment (Cash/EFT)
+ */
+@Serializable
+data class RecordManualPaymentRequest(
+    val documentId: String,
+    val amount: Double,
+    val paymentMethod: String  // "Cash", "EFT", etc.
+)
+
+/**
+ * Response from record-manual-payment edge function
+ */
+@Serializable
+data class RecordManualPaymentResponse(
+    val success: Boolean,
+    val newStatus: String? = null,
+    val error: String? = null
+)
+
+/**
+ * Line item for update-invoice request
+ */
+@Serializable
+data class UpdateInvoiceLineItem(
+    val description: String,
+    val quantity: Double,
+    val unit_price: Double,
+    val gst_rate: Double
+)
+
+/**
+ * Request to update an invoice's line items
+ */
+@Serializable
+data class UpdateInvoiceRequest(
+    val documentId: String,
+    val lineItems: List<UpdateInvoiceLineItem>,
+    val notes: String? = null
+)
+
+/**
+ * Response from update-invoice edge function
+ */
+@Serializable
+data class UpdateInvoiceResponse(
+    val success: Boolean,
+    val totalAmount: Double? = null,
+    val lineItemsCount: Int? = null,
     val error: String? = null
 )
 

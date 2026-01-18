@@ -255,10 +255,10 @@ interface ApiService {
         @Query("order") order: String = "planned_start_time.asc.nullslast"
     ): Response<List<com.bossless.companion.data.models.ScheduledJobAssignment>>
 
-    // Business Profile with feature flags
+    // Business Profile with feature flags and payment details
     @GET("rest/v1/business_profiles")
     suspend fun getBusinessProfileWithFeatures(
-        @Query("select") select: String = "document_prefix,business_name,logo_url,business_hours,feature_scheduler,feature_stripe_payments,enable_stripe_payments",
+        @Query("select") select: String = "document_prefix,business_name,logo_url,business_hours,feature_scheduler,feature_stripe_payments,enable_stripe_payments,bsb,account_number,account_name,payid,bpay_biller_code,bpay_reference",
         @Query("limit") limit: Int = 1
     ): Response<List<com.bossless.companion.data.models.BusinessProfile>>
 
@@ -273,7 +273,7 @@ interface ApiService {
         @Query("job_id") jobId: String,  // Caller must prefix with "eq."
         @Query("type") type: String = "eq.invoice",
         @Query("status") status: String = "in.(draft,validated,sent,overdue)",
-        @Query("select") select: String = "id,document_number,type,total_amount,status,issue_date,due_date,third_party_id,payment_token,payment_token_expires_at,payment_token_invalidated_at,total_paid,paid_at,created_at,third_parties(id,name,type,email,phone)",
+        @Query("select") select: String = "id,document_number,type,total_amount,status,issue_date,due_date,third_party_id,payment_token,payment_token_expires_at,payment_token_invalidated_at,total_paid,paid_at,created_at,third_parties(id,name,type,email,phone),document_items(id,document_id,description,quantity,unit_price,gst_rate,total)",
         @Query("order") order: String = "created_at.desc"
     ): Response<List<com.bossless.companion.data.models.InvoiceDocument>>
 
@@ -292,4 +292,12 @@ interface ApiService {
     suspend fun sendDocumentEmail(
         @Body request: com.bossless.companion.data.models.SendDocumentEmailRequest
     ): Response<com.bossless.companion.data.models.SendDocumentEmailResponse>
+
+    /**
+     * Record a manual payment (Cash/EFT) via edge function.
+     */
+    @POST("functions/v1/record-manual-payment")
+    suspend fun recordManualPayment(
+        @Body request: com.bossless.companion.data.models.RecordManualPaymentRequest
+    ): Response<com.bossless.companion.data.models.RecordManualPaymentResponse>
 }

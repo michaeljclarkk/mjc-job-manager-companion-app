@@ -118,23 +118,6 @@ object ErrorReporter {
         )
     }
     
-    // Legacy method names for backward compatibility
-    @Deprecated("Use logAndReportError instead", ReplaceWith("logAndReportError(context, error, userId, additionalInfo)"))
-    fun logAndEmailError(
-        context: String,
-        error: Throwable,
-        userId: String? = null,
-        additionalInfo: Map<String, String> = emptyMap()
-    ) = logAndReportError(context, error, userId, additionalInfo)
-    
-    @Deprecated("Use logAndReportError instead", ReplaceWith("logAndReportError(context, message, userId, additionalInfo)"))
-    fun logAndEmailError(
-        context: String,
-        message: String,
-        userId: String? = null,
-        additionalInfo: Map<String, String> = emptyMap()
-    ) = logAndReportError(context, message, userId, additionalInfo)
-    
     private fun sendErrorReport(
         context: String,
         message: String,

@@ -212,6 +212,25 @@ fun ProfileScreen(
                 )
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Allow invoice editing")
+                    Text(
+                        text = "Edit invoice line items directly from the app",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = uiState.invoiceEditingEnabled,
+                    onCheckedChange = viewModel::toggleInvoiceEditing
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
