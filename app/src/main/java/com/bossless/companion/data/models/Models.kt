@@ -92,7 +92,7 @@ data class JobUpdate(
 data class ThirdParty(
     val id: String,
     val name: String,
-    val type: String, // customer, supplier, subcontractor
+    val type: String? = null, // customer, supplier, subcontractor - nullable for partial selects
     val email: String? = null,
     val phone: String? = null,
     val address: String? = null

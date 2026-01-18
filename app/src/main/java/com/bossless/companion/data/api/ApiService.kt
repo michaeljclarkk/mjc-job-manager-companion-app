@@ -273,7 +273,7 @@ interface ApiService {
         @Query("job_id") jobId: String,  // Caller must prefix with "eq."
         @Query("type") type: String = "eq.invoice",
         @Query("status") status: String = "in.(draft,validated,sent,overdue)",
-        @Query("select") select: String = "id,document_number,type,total_amount,status,issue_date,due_date,third_party_id,payment_token,payment_token_expires_at,payment_token_invalidated_at,total_paid,paid_at,created_at,third_parties(id,name,email,phone)",
+        @Query("select") select: String = "id,document_number,type,total_amount,status,issue_date,due_date,third_party_id,payment_token,payment_token_expires_at,payment_token_invalidated_at,total_paid,paid_at,created_at,third_parties(id,name,type,email,phone)",
         @Query("order") order: String = "created_at.desc"
     ): Response<List<com.bossless.companion.data.models.InvoiceDocument>>
 
